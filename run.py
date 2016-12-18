@@ -3,7 +3,7 @@ import logging
 from os import environ
 from multiprocessing import current_process
 
-from redis import StrictRedis
+from redis import StrictRedis, ConnectionPool
 from rq import Worker, Queue, Connection
 
 rsyslog.setup()
