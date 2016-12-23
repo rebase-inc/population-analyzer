@@ -1,5 +1,8 @@
+import re
 import os
 import json
+import bisect
+import pickle
 import logging
 
 import boto3
@@ -8,44 +11,54 @@ import botocore
 import psycopg2
 
 LOGGER = logging.getLogger()
+logging.getLogger('boto3').setLevel(logging.WARNING)
+logging.getLogger('botocore').setLevel(logging.WARNING)
 
-SKILL_DATA_S3_BUCKET = os.environ['SKILL_DATA_S3_BUCKET']
 S3_CONFIG = {
-        'region_name': 'us-east-1',
+        'region_name': os.environ['AWS_REGION'],
         'aws_access_key_id': os.environ['AWS_ACCESS_KEY_ID'],
         'aws_secret_access_key': os.environ['AWS_SECRET_ACCESS_KEY'],
         }
-
-PROFILE_KEY = 'user-profiles/{github_id}/data'
-LEADERBOARD_KEYSPACE = 'population/{language}/{module}/'
-LEADERBOARD_ENTRY_KEYSPACE = LEADERBOARD_KEYSPACE + '{github_id}'
-LEADERBOARD_KNOWLEDGE_SUFFIX = ':{knowledge:.2f}'
+BUCKET = os.environ['S3_BUCKET']
+LEADERBOARD_PREFIX = os.environ['S3_LEADERBOARD_PREFIX']
+USER_PREFIX = os.environ['S3_USER_PREFIX']
 
 
-def _update_leaderboard_module(s3bucket, language, module, github_id, knowledge):
-    leaderboard_entry_keyspace = LEADERBOARD_ENTRY_KEYSPACE.format(language = language, module = module, github_id = github_id)
-    leaderboard_entry_key = leaderboard_entry_keyspace + LEADERBOARD_KNOWLEDGE_SUFFIX.format(knowledge = knowledge)
+def update_ranking_for_user(github_id, knowledge = None):
+    bucket = boto3.resource('s3', **S3_CONFIG).Bucket(BUCKET)
 
-    # this filter should only container one object
-    for obj in s3bucket.objects.filter(Prefix = leaderboard_entry_keyspace):
-        if obj.key != leaderboard_entry_key: 
-            obj.delete()
-            entry_object = s3bucket.Object(leaderboard_entry_keyspace + LEADERBOARD_KNOWLEDGE_SUFFIX.format(knowledge = knowledge))
-            entry_object.put(Body = bytes('', 'utf-8'))
+    if not knowledge:
+        knowledge = json.loads(bucket.Object('{}/{}'.format(USER_PREFIX, github_id)).get()['Body'].read().decode())
 
+    rankings = dict()
+    for language, modules in knowledge.items():
+        rankings[language] = dict()
+        for module, score in modules.items():
+            rankings[language][module] = _get_ranking(bucket, language, module, score)
 
-def update_leaderboard_with_userdata(github_id):
-    s3bucket = boto3.resource('s3', **S3_CONFIG).Bucket(SKILL_DATA_S3_BUCKET)
+    write_rankings_to_db(github_id, rankings)
+    LOGGER.info('rankings are')
+    LOGGER.info(rankings)
 
-    user_object = s3bucket.Object(PROFILE_KEY.format(github_id = github_id))
-    user_data = json.loads(user_object.get()['Body'].read().decode())
+def _get_ranking(bucket, language, module, score):
+    knowledge_regex = re.compile('.*\:([0-9,.]+)')
+    key = '{}/{}/{}/'.format(LEADERBOARD_PREFIX, language, module)
+    score = float('{:.2f}'.format(score))
 
-    for language, modules in user_data.items():
-        language_knowledge = 0.0
-        for module, knowledge in modules.items():
-            language_knowledge += knowledge
-            _update_leaderboard_module(s3bucket, language, module, github_id, knowledge)
-        _update_leaderboard_module(s3bucket, language, '__overall__', github_id, language_knowledge)
+    all_users = []
+    for user in bucket.objects.filter(Prefix = key):
+        knowledge = float(re.match('.*\:([0-9,.]+)', user.key).group(1))
+        all_users.append(knowledge)
 
-if __name__ == '__main__':
-    update_leaderboard_with_userdata('andrewmillspaugh')
+    return bisect.bisect_left(all_users, score) / len(all_users)
+
+def write_rankings_to_db(github_id, rankings):
+    with psycopg2.connect(dbname = 'postgres', user = 'postgres', password = '', host = 'database') as connection:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT id FROM github_user WHERE login = %(github_id)s', {'github_id': github_id})
+            github_user_id = cursor.fetchone()[0]
+            cursor.execute('SELECT user_id FROM github_account WHERE github_user_id = %(github_user_id)s', {'github_user_id': github_user_id})
+            user_id = cursor.fetchone()[0]
+            cursor.execute('SELECT id FROM role WHERE user_id = %(user_id)s AND type = %(type)s', {'user_id': user_id, 'type': 'contractor'})
+            skill_set_id = cursor.fetchone()[0] # skill_set_id == contractor_id
+            cursor.execute('UPDATE skill_set SET skills=%(skills)s WHERE id=%(skill_set_id)s', {'skills': pickle.dumps(rankings), 'skill_set_id': skill_set_id})
