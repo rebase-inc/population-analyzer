@@ -6,9 +6,9 @@ from multiprocessing import current_process
 from redis import StrictRedis, ConnectionPool
 from rq import Worker, Queue, Connection
 
-rsyslog.setup()
-LOGGER = logging.getLogger(__name__)
 current_process().name = environ['HOSTNAME']
+rsyslog.setup(log_level = environ['LOG_LEVEL'])
+LOGGER = logging.getLogger()
 
 try:
     # why just one connection at a time?
