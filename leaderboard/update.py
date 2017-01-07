@@ -34,8 +34,6 @@ def update_ranking_for_user(github_id, knowledge = None):
             rankings[language][module] = _get_ranking(bucket, language, module, score)
 
     write_rankings_to_db(github_id, rankings)
-    LOGGER.info('rankings are')
-    LOGGER.info(rankings)
 
 def _get_ranking(bucket, language, module, score):
     knowledge_regex = re.compile('.*\:([0-9,.]+)')
@@ -43,7 +41,6 @@ def _get_ranking(bucket, language, module, score):
     score = float('{:.2f}'.format(score))
 
     all_users = []
-    LOGGER.info('looking for keys that start with {}'.format(key))
     for user in bucket.objects.filter(Prefix = key):
         knowledge = float(re.match('.*\:([0-9,.]+)', user.key).group(1))
         all_users.append(knowledge)
