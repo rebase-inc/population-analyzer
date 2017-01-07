@@ -20,15 +20,12 @@ S3_CONFIG = {
         'aws_secret_access_key': os.environ['AWS_SECRET_ACCESS_KEY'],
         }
 BUCKET = os.environ['S3_BUCKET']
-LEADERBOARD_PREFIX = os.environ['S3_LEADERBOARD_PREFIX']
-USER_PREFIX = os.environ['S3_USER_PREFIX']
-
 
 def update_ranking_for_user(github_id, knowledge = None):
     bucket = boto3.resource('s3', **S3_CONFIG).Bucket(BUCKET)
 
     if not knowledge:
-        knowledge = json.loads(bucket.Object('{}/{}'.format(USER_PREFIX, github_id)).get()['Body'].read().decode())
+        knowledge = json.loads(bucket.Object('users/{}'.format(github_id)).get()['Body'].read().decode())
 
     rankings = dict()
     for language, modules in knowledge.items():
@@ -42,10 +39,11 @@ def update_ranking_for_user(github_id, knowledge = None):
 
 def _get_ranking(bucket, language, module, score):
     knowledge_regex = re.compile('.*\:([0-9,.]+)')
-    key = '{}/{}/{}/'.format(LEADERBOARD_PREFIX, language, module)
+    key = 'leaderboard/{}/{}/'.format(language, module)
     score = float('{:.2f}'.format(score))
 
     all_users = []
+    LOGGER.info('looking for keys that start with {}'.format(key))
     for user in bucket.objects.filter(Prefix = key):
         knowledge = float(re.match('.*\:([0-9,.]+)', user.key).group(1))
         all_users.append(knowledge)
