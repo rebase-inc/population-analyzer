@@ -25,7 +25,7 @@ def update_ranking_for_user(github_id, knowledge = None):
     bucket = boto3.resource('s3', **S3_CONFIG).Bucket(BUCKET)
 
     if not knowledge:
-        knowledge = json.loads(bucket.Object('users/{}'.format(github_id)).get()['Body'].read().decode())
+        knowledge = json.loads(bucket.Object('users/{}'.format(github_id)).get()['Body'].read().decode())['knowledge']
 
     rankings = dict()
     for language, modules in knowledge.items():
