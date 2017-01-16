@@ -44,6 +44,7 @@ def _get_ranking(bucket, language, module, score):
     for user in bucket.objects.filter(Prefix = key):
         knowledge = float(re.match('.*\:([0-9,.]+)', user.key).group(1))
         all_users.append(knowledge)
+    all_users = sorted(all_users)
 
     return bisect.bisect_left(all_users, score) / len(all_users)
 
