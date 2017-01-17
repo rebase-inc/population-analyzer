@@ -1,4 +1,7 @@
+import os
 import logging
+
+from knowledgemodel import KnowledgeModel
 
 LOGGER = logging.getLogger()
 logging.getLogger('boto3').setLevel(logging.WARNING)
