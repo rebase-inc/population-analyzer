@@ -1,9 +1,5 @@
 FROM alpine
 
-ARG PYTHON_COMMONS_HOST
-ARG PYTHON_COMMONS_SCHEME
-ARG PYTHON_COMMONS_PORT
-
 RUN apk --quiet update && \
     apk --quiet add \
         --no-cache \
@@ -21,6 +17,10 @@ RUN apk --quiet update && \
 
 COPY ./requirements.txt /
 COPY ./run.py /
+
+ARG PYTHON_COMMONS_HOST
+ARG PYTHON_COMMONS_SCHEME
+ARG PYTHON_COMMONS_PORT
 
 RUN source /venv/bin/activate && \
     pip --quiet install \

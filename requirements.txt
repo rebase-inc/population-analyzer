@@ -1,5 +1,6 @@
 botocore
 boto3
+knowledgemodel
 rq
 redis
 rsyslog
