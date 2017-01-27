@@ -6,7 +6,7 @@ import logging
 import boto3
 from stdlib_list import stdlib_list
 
-from knowledgemodel import KnowledgeModel
+from knowledgemodel import Knowledge, S3Population, PostgresPopulation
 
 LOGGER = logging.getLogger()
 logging.getLogger('boto3').setLevel(logging.WARNING)
@@ -22,8 +22,11 @@ BUCKET = os.environ['S3_BUCKET']
 STANDARD_LIBRARY = set(stdlib_list('3.5')) | set(stdlib_list('2.7'))
 
 def update_ranking_for_user(github_id):
-    knowledge = KnowledgeModel(github_id, BUCKET, S3_CONFIG)
-    knowledge.calculate_rankings()
+    s3population = S3Population(BUCKET, S3_CONFIG, depth = 2)
+    pgpopulation = PostgresPopulation(depth = 2)
+    knowledge = s3population.get_user_knowledge(github_id)
+    rankings = s3population.calculate_rankings(knowledge)
+    pgpopulation.add_user_ranking(github_id, rankings)
 
 def clean():
     bucket = boto3.resource('s3', **S3_CONFIG).Bucket(BUCKET)
