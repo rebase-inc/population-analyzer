@@ -15,19 +15,23 @@ RUN apk --quiet update && \
     pyvenv /venv && \
     mkdir -p /big_repos
 
-COPY ./requirements.txt /
-COPY ./run.py /
 
 ARG PYTHON_COMMONS_HOST
 ARG PYTHON_COMMONS_SCHEME
 ARG PYTHON_COMMONS_PORT
 
+COPY requirements.txt /
+
 RUN source /venv/bin/activate && \
-    pip --quiet install \
+    pip install --upgrade pip && \
+    pip install \
         --no-cache-dir \
         --trusted-host ${PYTHON_COMMONS_HOST} \
         --extra-index-url ${PYTHON_COMMONS_SCHEME}${PYTHON_COMMONS_HOST}:${PYTHON_COMMONS_PORT} \
         --requirement /requirements.txt
 
-ENV PYTHONPATH /pylibs
+ENV PYTHONPATH /usr/app/src
+COPY run.py /
+COPY leaderboard /usr/app/src/leaderboard
+
 CMD ["/venv/bin/python", "-m", "run"]

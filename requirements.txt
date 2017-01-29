@@ -1,7 +1,8 @@
-botocore
 boto3
-knowledgemodel
-rq
-redis
-rsyslog
+botocore
 psycopg2
+redis
+rq
+
+knowledgemodel
+rsyslog
