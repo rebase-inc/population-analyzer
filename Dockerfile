@@ -4,7 +4,6 @@ RUN apk --quiet update && \
     apk --quiet add \
         --no-cache \
         gcc \
-        git \
         libpq \
         libmagic \
         musl-dev \
@@ -12,9 +11,7 @@ RUN apk --quiet update && \
         py-virtualenv \
         python3-dev \
         python3 && \
-    pyvenv /venv && \
-    mkdir -p /big_repos
-
+    pyvenv /venv
 
 ARG PYTHON_COMMONS_HOST
 ARG PYTHON_COMMONS_SCHEME
