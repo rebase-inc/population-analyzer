@@ -5,7 +5,6 @@ RUN apk --quiet update && \
         --no-cache \
         gcc \
         libpq \
-        libmagic \
         musl-dev \
         postgresql-dev \
         py-virtualenv \
